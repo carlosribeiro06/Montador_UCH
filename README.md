@@ -39,7 +39,7 @@ Definição da agregação
 Cálculo de GMin / GMax
       │
       ▼
-Geração do uch.dat
+Geração do uch.csv
 ```
 
 ## 📥 Entrada
@@ -59,7 +59,7 @@ A planilha deve conter as informações necessárias para identificação das us
 Ao executar o programa, é gerado:
 
 ```text
-uch.dat
+uch.csv
 ```
 
 O arquivo contém os registros necessários para a configuração do UCH, incluindo, entre outros:
