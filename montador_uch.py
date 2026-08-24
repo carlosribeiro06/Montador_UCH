@@ -104,7 +104,7 @@ def escreve_uch(lista_hidreletricas):
                 agregacao = 2
             elif hidreletrica.agregacao == "Usina":
                 agregacao = 3
-            arquivo.write(f"UCH-PADRAO-USINA;{codigo};1;{agregacao}\n")
+            arquivo.write(f"UCH-OPCAO-PADRAO-USINA;{codigo};1;{agregacao}\n")
             if agregacao == 1:
                 for hidreletrica_conjunto in hidreletrica.conjuntos:
                     nconjunto = hidreletrica_conjunto.nconjunto
