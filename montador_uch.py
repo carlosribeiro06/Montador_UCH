@@ -118,7 +118,10 @@ def escreve_uch(lista_hidreletricas):
                     arquivo.write(f"UCH-GERACAO-MINIMA-MAXIMA-CONJUNTO;{codigo};{nconjunto+1};{hidreletrica_conjunto.unidades[0].pmin};{hidreletrica_conjunto.pmax}\n")
             elif agregacao == 3:
                 pmin_usina = min(unidade.pmin for conjunto in hidreletrica.conjuntos for unidade in conjunto.unidades)
-                pmax_usina = sum(conjunto.pmax for conjunto in hidreletrica.conjuntos)
+                pmax_usina = 0
+                for conjunto in hidreletrica.conjuntos:
+                    for unidade in conjunto.unidades:
+                        pmax_usina += conjunto.pmax
                 arquivo.write(f"UCH-GERACAO-MINIMA-MAXIMA-USINA;{codigo};{pmin_usina};{pmax_usina}\n")
             arquivo.write("\n")
 
