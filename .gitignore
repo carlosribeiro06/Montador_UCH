@@ -1,2 +1,9 @@
+# Ambientes virtuais
 .venv/
-uch.csv
+
+# Arquivos CSV
+*.csv
+
+# Arquivos Excel
+*.xlsx
+*.xls
