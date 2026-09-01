@@ -1,7 +1,12 @@
-from pathlib import Path
+from idessem.dessem import DessemArq
+from idessem.dessem import Uch
+from idessem.dessem import Entdados
+from idessem.dessem.modelos.dessemarq import RegistroUch
+from idessem.dessem.modelos.uch import UchOpcaoPadraoUsina, UchOpcaoPadrao, UchPadraoData, UchGminGmaxUnidade, UchGminGmaxConjunto, UchGminGmaxUsina
+from idessem.dessem.modelos.entdados import ACNUMCON, ACNUMMAQ, ACPOTEFE, TM
 import pandas as pd
-import numpy as np
 
+caminho_caso = "DS_ONS_092026_RV0D02"
 df_hidreletricas = pd.read_excel('UCH.xlsx', sheet_name='UCH', header=1)
 
 class hidreletrica:
@@ -81,53 +86,85 @@ def cadastra_hidreletrica(df):
     return lista_hidreletricas
 
 
-def escreve_uch(lista_hidreletricas):
-    with open("uch.dat", "w") as arquivo:
-        arquivo.write("============================================================\n"
-            "ONS - Operador Nacional do Sistema Elétrico\n"
-            "Diretoria de Planejamento\n"
-            "Gerência Executiva de Ferramentas Eletroenergéticas\n"
-            "Gerência de Ferramentas Energéticas\n"
-            "============================================================\n")
-        arquivo.write("UCH-OPCAO-PADRAO;1\n")
-        arquivo.write("#------------------------------------------------------------------------------------------------------------------------\n")
-        arquivo.write("\n")
-        for hidreletrica in lista_hidreletricas:
-            codigo = hidreletrica.codigo
-            hidreletrica_nome = hidreletrica.nome 
-            arquivo.write("#------------------------------------------------------------------------------------------------------------------------\n")
-            arquivo.write(f"#USINA {codigo}: {hidreletrica_nome.strip()}\n")
-            arquivo.write("#------------------------------------------------------------------------------------------------------------------------\n")
-            if hidreletrica.agregacao == "Unidade":
-                agregacao = 1
-            elif hidreletrica.agregacao == "Conjunto":
-                agregacao = 2
-            elif hidreletrica.agregacao == "Usina":
-                agregacao = 3
-            arquivo.write(f"UCH-OPCAO-PADRAO-USINA;{codigo};1;{agregacao}\n")
-            if agregacao == 1:
-                for hidreletrica_conjunto in hidreletrica.conjuntos:
-                    nconjunto = hidreletrica_conjunto.nconjunto
-                    if hidreletrica.agregacao == "Unidade":
-                        for unidade in hidreletrica_conjunto.unidades:
-                            nunidade = unidade.nunidade
-                            arquivo.write(f"UCH-GERACAO-MINIMA-MAXIMA-UNIDADE;{codigo};{nconjunto+1};{nunidade+1};{unidade.pmin};{hidreletrica_conjunto.pmax/len(hidreletrica_conjunto.unidades)}\n")
-            elif agregacao == 2:
-                for hidreletrica_conjunto in hidreletrica.conjuntos:
-                    nconjunto = hidreletrica_conjunto.nconjunto
-                    arquivo.write(f"UCH-GERACAO-MINIMA-MAXIMA-CONJUNTO;{codigo};{nconjunto+1};{hidreletrica_conjunto.unidades[0].pmin};{hidreletrica_conjunto.pmax}\n")
-            elif agregacao == 3:
-                pmin_usina = min(unidade.pmin for conjunto in hidreletrica.conjuntos for unidade in conjunto.unidades)
-                pmax_usina = 0
-                for conjunto in hidreletrica.conjuntos:
-                    for unidade in conjunto.unidades:
-                        pmax_usina += conjunto.pmax
-                arquivo.write(f"UCH-GERACAO-MINIMA-MAXIMA-USINA;{codigo};{pmin_usina};{pmax_usina}\n")
-            arquivo.write("\n")
+def escreve_uch_dessemarq(caminho_caso):
 
-def transforma_dat_para_csv():
-    Path("uch.dat").rename("uch.csv")
+    dessemarq = DessemArq.read(f"{caminho_caso}/dessem.arq")
+    registro_uch = RegistroUch()
 
-hidros = cadastra_hidreletrica(df_hidreletricas)
-escreve_uch(hidros)
-transforma_dat_para_csv()
+    if dessemarq.uch is None:
+        registro_uch.descricao = "UNIT COMMITMENT HIDRAULICO"
+        registro_uch.valor = "uch.csv"
+        dessemarq.data.preppend(registro_uch)
+        dessemarq.write(f"{caminho_caso}/dessem.arq")
+
+
+def escreve_uch(caminho_caso, lista_hidreletricas):
+    uch = Uch()
+    entdados = Entdados.read(f"{caminho_caso}/entdados.dat")
+    df_tm = entdados.tm(df=True)
+
+    registro_opcao_padrao = UchOpcaoPadrao()
+    registro_opcao_padrao.considera_uch = 1
+    uch.data.append(registro_opcao_padrao)
+
+    registro_uch_padrao_data = UchPadraoData()
+    df_tm_filtrado = df_tm[df_tm["duracao"] == 0.5]
+    registro_uch_padrao_data.dia_final = df_tm_filtrado.iloc[-1]["dia_inicial"]
+    registro_uch_padrao_data.hora_final = df_tm_filtrado.iloc[-1]["hora_inicial"]
+    registro_uch_padrao_data.meia_hora_final = df_tm_filtrado.iloc[-1]["meia_hora_inicial"]
+    uch.data.append(registro_uch_padrao_data)
+
+    for hidreletrica in lista_hidreletricas:
+        registro_opcao_padrao_usina = UchOpcaoPadraoUsina()
+        registro_gmin_gmax_unidade = UchGminGmaxUnidade()
+        registro_gmin_gmax_conjunto = UchGminGmaxConjunto()
+        registro_gmin_gmax_usina = UchGminGmaxUsina()
+        
+        codigo = hidreletrica.codigo
+        if hidreletrica.agregacao == "Unidade":
+            tipo_agregacao = 1
+        elif hidreletrica.agregacao == "Conjunto":
+            tipo_agregacao = 2
+        elif hidreletrica.agregacao == "Usina":
+            tipo_agregacao = 3
+        registro_opcao_padrao_usina.codigo_usina = codigo
+        registro_opcao_padrao_usina.considera_uch_usina = 1
+        registro_opcao_padrao_usina.tipo_agregacao = tipo_agregacao
+        uch.data.append(registro_opcao_padrao_usina)
+        if tipo_agregacao == 1:
+            for hidreletrica_conjunto in hidreletrica.conjuntos:
+                nconjunto = hidreletrica_conjunto.nconjunto
+                if hidreletrica.agregacao == "Unidade":
+                    for unidade in hidreletrica_conjunto.unidades:
+                        nunidade = unidade.nunidade
+                        registro_gmin_gmax_unidade.codigo_usina = codigo
+                        registro_gmin_gmax_unidade.codigo_conjunto = nconjunto+1
+                        registro_gmin_gmax_unidade.condigo_unidade = nunidade+1
+                        registro_gmin_gmax_unidade.geracao_minima_unidade = unidade.pmin
+                        registro_gmin_gmax_unidade.geracao_maxima_unidade = unidade.pmax/len(hidreletrica_conjunto.unidades)
+                        uch.data.append(registro_gmin_gmax_unidade)
+        elif tipo_agregacao == 2:
+            for hidreletrica_conjunto in hidreletrica.conjuntos:
+                nconjunto = hidreletrica_conjunto.nconjunto
+                registro_gmin_gmax_conjunto.codigo_usina = codigo
+                registro_gmin_gmax_conjunto.codigo_conjunto = nconjunto+1
+                registro_gmin_gmax_conjunto.geracao_minima_conjunto = hidreletrica_conjunto.unidades[0].pmin
+                registro_gmin_gmax_conjunto.geracao_maxima_conjunto = hidreletrica_conjunto.pmax
+                uch.data.append(registro_gmin_gmax_conjunto)
+        elif tipo_agregacao == 3:
+            pmin_usina = min(unidade.pmin for conjunto in hidreletrica.conjuntos for unidade in conjunto.unidades)
+            pmax_usina = 0
+            for conjunto in hidreletrica.conjuntos:
+                for unidade in conjunto.unidades:
+                    pmax_usina += conjunto.pmax
+            registro_gmin_gmax_usina.codigo_usina = codigo
+            registro_gmin_gmax_usina.geracao_minima_usina = pmin_usina
+            registro_gmin_gmax_usina.geracao_maxima_usina = pmax_usina
+            uch.data.append(registro_gmin_gmax_usina)
+
+    uch.write(f"{caminho_caso}/uch.csv")
+
+
+lista_hidreletricas = cadastra_hidreletrica(df_hidreletricas)
+escreve_uch_dessemarq(caminho_caso)
+escreve_uch(caminho_caso, lista_hidreletricas)
