@@ -37,8 +37,6 @@ packages = ["src/montador_uch"]
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]
-# Legacy entry script, excluded until ticket-007 replaces it with the CLI package.
-extend-exclude = ["montador_uch.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
@@ -58,7 +56,7 @@ implicit_reexport = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# importlib mode keeps the repository root off sys.path, so the legacy montador_uch.py
-# script cannot shadow the montador_uch package (removed with it in ticket-007).
+# importlib mode keeps the repository root off sys.path, so tests always exercise the
+# installed montador_uch package rather than anything shadowing it from the root.
 addopts = "-q --import-mode=importlib"
 pythonpath = ["src", "tests"]
