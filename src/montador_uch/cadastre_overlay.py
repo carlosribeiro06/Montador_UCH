@@ -164,10 +164,16 @@ def _finalise_groups(
 
         unit_max_mw = state.unit_max_mw
         if unit_max_mw is None:
+            column = group_column(GROUP_MAX_POWER_COLUMN, index - 1)
+            cause = (
+                f"workbook column {column!r} is blank"
+                if state.spreadsheet_total_mw is None
+                else f"the workbook gives group {index} no units, so its total in {column!r} "
+                "yields no per-unit power"
+            )
             raise CadastreChangeError(
                 f"Row {record.row_number}, plant {record.code} ({record.name}): group {index} "
-                f"has no per-unit power: workbook {GROUP_MAX_POWER_COLUMN!r} blank or zero and "
-                "no AC POTEFE"
+                f"has no per-unit power: {cause}, and no AC POTEFE sets one"
             )
         min_mw = state.min_mw
         if min_mw is None:

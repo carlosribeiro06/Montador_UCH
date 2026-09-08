@@ -136,7 +136,7 @@ def test_new_group_promoted_by_numcon_keeps_its_zero_unit_min_power() -> None:
     assert len(new_group.units) == 6
     assert new_group.min_power_mw == pytest.approx(21.0)
     assert all(unit.max_power_mw == pytest.approx(69.6) for unit in new_group.units)
-    assert all(21.0 <= unit.max_power_mw <= 69.6 for unit in new_group.units)
+    assert all(unit.min_power_mw == pytest.approx(21.0) for unit in new_group.units)
 
 
 def test_unit_count_change_without_power_change_keeps_the_original_unit_maximum() -> None:
@@ -205,6 +205,16 @@ def test_new_group_without_potefe_and_blank_max_raises() -> None:
     record = _record(1, "A", 1, (2, 5.0, 20.0), _UNUSED_POSITION)
 
     with pytest.raises(CadastreChangeError, match=r"group 2 has no per-unit power"):
+        apply_cadastre_changes([record], [GroupCountChange(1, 2), UnitCountChange(1, 2, 3)])
+
+
+def test_new_group_without_potefe_on_a_zero_unit_position_blames_the_unit_count() -> None:
+    """Plant-287 shape: the total is present but no units, so the message must not blame it."""
+    record = _record(1, "A", 1, (2, 5.0, 20.0), (0, 21.0, 0.0))
+
+    with pytest.raises(
+        CadastreChangeError, match=r"group 2 no units, so its total in 'Potencia_maxima.1'"
+    ):
         apply_cadastre_changes([record], [GroupCountChange(1, 2), UnitCountChange(1, 2, 3)])
 
 
