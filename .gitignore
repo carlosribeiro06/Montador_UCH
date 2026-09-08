@@ -7,3 +7,10 @@
 # Arquivos Excel
 *.xlsx
 *.xls
+
+# Arquivos pdf
+*.pdf
+
+# Plan orchestration artifacts
+plans-lite/
+*.md
