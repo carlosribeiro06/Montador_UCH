@@ -86,7 +86,7 @@ Exit codes:
 | Code | Meaning                                                                            |
 | ---- | ---------------------------------------------------------------------------------- |
 | `0`  | `uch.csv` written and `dessem.arq` checked                                          |
-| `1`  | bad settings, malformed spreadsheet row, missing input file, or invalid study stage |
+| `1`  | bad settings, malformed or infeasible spreadsheet row, missing input, bad study stage |
 | `2`  | command-line usage error                                                           |
 
 Running the tool twice on the same deck is safe: `uch.csv` is rewritten from scratch and the
@@ -122,6 +122,21 @@ in the current workbook and are ignored, as the original script did.
 
 Rows whose `Tipo` is `Sem UCH` are skipped without validation. Any other malformed row aborts the
 run with the plant code and the spreadsheet row in the message.
+
+### Minimum must not exceed maximum
+
+A `Potencia_de_acionamento` greater than the maximum it is paired with -- the group total for a
+group register, or `Potencia_maxima / Nmaqs` for a unit register -- would be written as an
+infeasible `Gmin > Gmax` register. The reader rejects it instead:
+
+```text
+SpreadsheetError: Row 129, plant 195: Unit 1 minimum power 40.5 exceeds its maximum 39.3;
+the register would be infeasible
+```
+
+The workbook must be corrected before the run can produce `uch.csv`; the tool deliberately does
+not clamp or drop the offending plant, because choosing a replacement value is a physical
+judgement, not a formatting one.
 
 ## Aggregation levels
 

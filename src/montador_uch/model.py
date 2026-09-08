@@ -12,7 +12,7 @@ import math
 from dataclasses import dataclass
 from enum import IntEnum
 
-_MINIMUM_TOLERANCE_MW = 1e-9
+_POWER_TOLERANCE_MW = 1e-9
 
 
 class AggregationLevel(IntEnum):
@@ -58,6 +58,15 @@ def _check_power(value: float, what: str) -> None:
         raise ValueError(f"{what} must not be negative, got {value}")
 
 
+def _check_limits(minimum: float, maximum: float, what: str) -> None:
+    """Reject an inverted limit pair, which DESSEM would receive as an infeasible register."""
+    if minimum > maximum + _POWER_TOLERANCE_MW:
+        raise ValueError(
+            f"{what} minimum power {minimum} exceeds its maximum {maximum}; "
+            "the register would be infeasible"
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class GeneratingUnit:
     """One generating unit of a unit group."""
@@ -70,6 +79,7 @@ class GeneratingUnit:
         _check_index(self.index, "Unit")
         _check_power(self.min_power_mw, f"Unit {self.index} minimum power")
         _check_power(self.max_power_mw, f"Unit {self.index} maximum power")
+        _check_limits(self.min_power_mw, self.max_power_mw, f"Unit {self.index}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,13 +106,13 @@ class UnitGroup:
 
         minima = [unit.min_power_mw for unit in self.units]
         reference = minima[0]
-        if any(
-            not math.isclose(value, reference, abs_tol=_MINIMUM_TOLERANCE_MW) for value in minima
-        ):
+        if any(not math.isclose(value, reference, abs_tol=_POWER_TOLERANCE_MW) for value in minima):
             raise ValueError(
                 f"Group {self.index} units have differing minimum powers {minima}; "
                 "all units of a group share the spreadsheet start-up power"
             )
+
+        _check_limits(reference, self.max_power_mw, f"Group {self.index}")
 
     @property
     def min_power_mw(self) -> float:

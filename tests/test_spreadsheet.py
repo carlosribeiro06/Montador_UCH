@@ -213,6 +213,31 @@ def test_negative_power_raises(tmp_path: Path) -> None:
         _read(path)
 
 
+def test_start_up_power_above_unit_maximum_raises(tmp_path: Path) -> None:
+    """GUAPORE in the real workbook: 41.4 MW start-up against a 120/3 = 40 MW unit maximum."""
+    path = _workbook(tmp_path, plant_row(196, "GUAPORE", "Conjunto", [(3, 41.4, 120.0)]))
+    with pytest.raises(
+        SpreadsheetError,
+        match=r"Row 3, plant 196: Unit 1 minimum power 41.4 exceeds its maximum 40.0",
+    ):
+        _read(path)
+
+
+def test_start_up_power_above_group_total_raises(tmp_path: Path) -> None:
+    """JAURU group 2 in the real workbook: one unit of 39.4 MW with a 40.5 MW start-up."""
+    path = _workbook(tmp_path, plant_row(195, "JAURU", "Conjunto", [(1, 40.5, 39.4)]))
+    with pytest.raises(SpreadsheetError, match=r"plant 195: Unit 1 minimum power 40.5 exceeds"):
+        _read(path)
+
+
+def test_equal_minimum_and_maximum_is_accepted(tmp_path: Path) -> None:
+    path = _workbook(tmp_path, plant_row(1, "TIGHT", "Conjunto", [(2, 23.0, 46.0)]))
+    plant = read_plants(path, SHEET, HEADER_ROW)[0]
+
+    assert plant.groups[0].min_power_mw == pytest.approx(23.0)
+    assert plant.units[0].max_power_mw == pytest.approx(23.0)
+
+
 def test_plant_with_only_empty_groups_raises(tmp_path: Path) -> None:
     path = _workbook(tmp_path, plant_row(7, "X", "Conjunto", [(0, 0.0, 0.0), (0, 0.0, 0.0)]))
     with pytest.raises(SpreadsheetError, match=r"UCH plant has no group with units"):

@@ -63,6 +63,17 @@ class TestGeneratingUnit:
         with pytest.raises(ValueError, match=r"Unit 3 maximum power must not be negative"):
             GeneratingUnit(index=3, min_power_mw=1.0, max_power_mw=-2.0)
 
+    def test_minimum_above_maximum_raises(self) -> None:
+        with pytest.raises(ValueError, match=r"Unit 1 minimum power 40.5 exceeds its maximum 39.3"):
+            GeneratingUnit(index=1, min_power_mw=40.5, max_power_mw=39.3)
+
+    def test_equal_limits_are_accepted(self) -> None:
+        unit = GeneratingUnit(index=1, min_power_mw=23.0, max_power_mw=23.0)
+        assert unit.min_power_mw == pytest.approx(unit.max_power_mw)
+
+    def test_float_noise_does_not_trip_the_limit_check(self) -> None:
+        GeneratingUnit(index=1, min_power_mw=23.0 + 1e-12, max_power_mw=23.0)
+
     def test_is_frozen(self) -> None:
         unit = GeneratingUnit(index=1, min_power_mw=1.0, max_power_mw=2.0)
         with pytest.raises(AttributeError):
@@ -109,6 +120,21 @@ class TestUnitGroup:
         )
         with pytest.raises(ValueError, match=r"Group 4 units have differing minimum powers"):
             UnitGroup(index=4, max_power_mw=100.0, units=units)
+
+    def test_group_minimum_above_group_total_raises(self) -> None:
+        """JAURU group 2 in the real workbook: a single unit whose start-up power exceeds it."""
+        units = (GeneratingUnit(index=1, min_power_mw=39.4, max_power_mw=39.4),)
+        with pytest.raises(
+            ValueError, match=r"Group 2 minimum power 40.5 exceeds its maximum 39.4"
+        ):
+            UnitGroup(
+                index=2,
+                max_power_mw=39.4,
+                units=(GeneratingUnit(index=1, min_power_mw=40.5, max_power_mw=40.5),),
+            )
+        assert UnitGroup(index=2, max_power_mw=39.4, units=units).min_power_mw == pytest.approx(
+            39.4
+        )
 
     def test_float_noise_in_minima_is_tolerated(self) -> None:
         units = (
