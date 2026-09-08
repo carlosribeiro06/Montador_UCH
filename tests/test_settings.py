@@ -1,5 +1,7 @@
 """Tests for settings loading and validation."""
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
 
@@ -76,6 +78,41 @@ def test_bool_is_not_accepted_as_integer(tmp_path: Path) -> None:
 def test_integer_is_accepted_for_float_key(tmp_path: Path) -> None:
     path = _write(tmp_path / "settings.json", {"half_hour_stage_duration_h": 1})
     assert load_settings(path).half_hour_stage_duration_h == pytest.approx(1.0)
+
+
+@pytest.mark.parametrize(
+    ("payload", "pattern"),
+    [
+        ({"log_level": "LOUD"}, r"log_level.*must be one of DEBUG, INFO"),
+        ({"log_level": "info"}, r"log_level.*must be one of"),
+        ({"header_row": -1}, r"header_row.*must not be negative"),
+        ({"half_hour_stage_duration_h": 0}, r"half_hour_stage_duration_h.*must be positive"),
+        ({"half_hour_stage_duration_h": -0.5}, r"half_hour_stage_duration_h.*must be positive"),
+        ({"log_max_bytes": 0}, r"log_max_bytes.*at least 1"),
+        ({"log_backup_count": 0}, r"log_backup_count.*at least 1"),
+        ({"log_backup_count": -3}, r"log_backup_count.*at least 1"),
+    ],
+)
+def test_out_of_range_values_raise(
+    tmp_path: Path, payload: dict[str, object], pattern: str
+) -> None:
+    """A well-typed but unusable value must fail with the key and the file, not deep in logging."""
+    path = _write(tmp_path / "settings.json", payload)
+    with pytest.raises(SettingsError, match=pattern):
+        load_settings(path)
+    with pytest.raises(SettingsError, match=r"settings\.json"):
+        load_settings(path)
+
+
+@pytest.mark.parametrize("level", ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
+def test_every_documented_log_level_is_accepted(tmp_path: Path, level: str) -> None:
+    path = _write(tmp_path / "settings.json", {"log_level": level})
+    assert load_settings(path).log_level == level
+
+
+def test_header_row_zero_is_accepted(tmp_path: Path) -> None:
+    path = _write(tmp_path / "settings.json", {"header_row": 0})
+    assert load_settings(path).header_row == 0
 
 
 def test_non_string_path_raises(tmp_path: Path) -> None:

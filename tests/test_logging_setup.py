@@ -1,5 +1,7 @@
 """Tests for the console + rotating file logging setup."""
 
+from __future__ import annotations
+
 import logging
 from collections.abc import Iterator
 from dataclasses import replace

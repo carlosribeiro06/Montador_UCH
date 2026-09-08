@@ -5,7 +5,6 @@ The real deck is never modified: everything runs on a copy under `tmp_path`.
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import pytest
@@ -18,11 +17,22 @@ SETTINGS = Settings()
 
 @pytest.fixture
 def dessemarq_copy(deck_dir: Path, tmp_path: Path) -> Path:
+    """A copy of the deck's index file with any existing UCH record stripped.
+
+    The tool itself writes that record into the reference deck, so the copy must establish its
+    own precondition rather than inherit whatever state the deck happens to be in.
+    """
     source = deck_dir / SETTINGS.dessemarq_filename
     if not source.is_file():
         pytest.skip(f"{source} not available")
+
+    without_uch = [
+        line
+        for line in source.read_text(encoding="utf-8").splitlines()
+        if not line.startswith("UCH")
+    ]
     target = tmp_path / SETTINGS.dessemarq_filename
-    shutil.copy(source, target)
+    target.write_text("\n".join(without_uch) + "\n", encoding="utf-8")
     return target
 
 

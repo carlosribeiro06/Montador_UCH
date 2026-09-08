@@ -43,6 +43,9 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["montador_uch", "helpers"]
+# rules/python.md mandates `from __future__ import annotations` in every module; enforce it
+# mechanically so it cannot drift.
+required-imports = ["from __future__ import annotations"]
 
 [tool.mypy]
 strict = true

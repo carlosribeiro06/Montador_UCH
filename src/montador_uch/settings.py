@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_SETTINGS_FILENAME: Final = "settings.json"
 
+LOG_LEVELS: Final = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+
 
 class SettingsError(Exception):
     """Raised when the settings file is unreadable or holds an invalid key or value."""
@@ -83,6 +85,24 @@ def _coerce(key: str, value: Any, source: Path) -> Any:
     raise SettingsError(f"{where} has an unsupported declared type {expected!r}")
 
 
+def _check_domain(key: str, value: Any, source: Path) -> None:
+    """Reject values that are well-typed but outside the range the code can honour."""
+    where = f"key '{key}' in settings file {source}"
+
+    if key == "log_level" and value not in LOG_LEVELS:
+        raise SettingsError(f"{where} must be one of {', '.join(LOG_LEVELS)}, got {value!r}")
+    if key == "header_row" and value < 0:
+        raise SettingsError(f"{where} must not be negative, got {value}")
+    if key == "half_hour_stage_duration_h" and value <= 0.0:
+        raise SettingsError(f"{where} must be positive, got {value}")
+    if key == "log_max_bytes" and value < 1:
+        raise SettingsError(f"{where} must be at least 1, got {value}")
+    # RotatingFileHandler only rotates while backupCount > 0, so 0 would silently turn the audit
+    # log into a single file that grows without bound.
+    if key == "log_backup_count" and value < 1:
+        raise SettingsError(f"{where} must be at least 1, got {value}")
+
+
 def _absolute(path: Path, base: Path) -> Path:
     return path if path.is_absolute() else base / path
 
@@ -98,8 +118,9 @@ def _resolve_paths(settings: Settings, base: Path) -> Settings:
 def load_settings(path: Path | None = None) -> Settings:
     """Load settings from `path`, falling back to the built-in defaults.
 
-    Every key is optional. An unknown key, a value of the wrong type, or unreadable/invalid JSON
-    raises `SettingsError` naming the key and the file.
+    Every key is optional. An unknown key, a value of the wrong type, a value outside the range
+    the code can honour, or unreadable/invalid JSON raises `SettingsError` naming the key and
+    the file.
     """
     candidate = Path(DEFAULT_SETTINGS_FILENAME) if path is None else path
 
@@ -130,5 +151,8 @@ def load_settings(path: Path | None = None) -> Settings:
         )
 
     values = {key: _coerce(key, value, candidate) for key, value in payload.items()}
+    for key, value in values.items():
+        _check_domain(key, value, candidate)
+
     logger.info("Loaded settings from %s (%d key(s) overridden)", candidate, len(values))
     return _resolve_paths(Settings(**values), candidate.resolve().parent)

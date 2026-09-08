@@ -24,15 +24,24 @@ absent from its `idessem.dessem.modelos.uch`, which offers `UchOpcaoUsina` and
 `UchOpcaoPadraoData` instead. The dependency is therefore declared by commit hash in
 `pyproject.toml` and locked in `uv.lock`.
 
-`UCH.xlsx` is gitignored and must be supplied locally. Point `spreadsheet_path` in
-`settings.json` at it, or pass `--spreadsheet`.
+`UCH.xlsx` is versioned in this repository and ships with a clone. The `*.xlsx` rule in
+`.gitignore` was added after the workbook was already tracked, so it only hides *new* workbooks --
+edits to `UCH.xlsx` itself are still picked up by `git add`. Point `spreadsheet_path` in
+`settings.json` at a different workbook, or pass `--spreadsheet`, to use another one.
 
 ## Configuration
 
-`settings.json` sits next to the code by default. Every key is optional; omitted keys fall back
-to the defaults below. An unknown key, or a value of the wrong type, aborts the run with a
-message naming the key and the file. Relative `spreadsheet_path` and `log_dir` values resolve
-against the directory holding the settings file.
+By default the tool reads `settings.json` **from the current working directory** (the repository
+ships one at its root); `--settings PATH` points it elsewhere. If the file is absent the run does
+not fail -- it logs a warning and continues on the built-in defaults below, resolved against the
+current working directory. Pass `--settings` explicitly when launching from another directory, on
+a study server or from a scheduled job, so a configured path is never silently replaced by a
+default.
+
+Every key is optional; omitted keys fall back to the defaults below. An unknown key, a value of
+the wrong type, or a value outside the usable range aborts the run with a message naming the key
+and the file. Relative `spreadsheet_path` and `log_dir` values resolve against the directory
+holding the settings file.
 
 | Key                          | Meaning                                              | Default                     |
 | ---------------------------- | ---------------------------------------------------- | --------------------------- |
@@ -44,7 +53,7 @@ against the directory holding the settings file.
 | `entdados_filename`          | Deck file supplying the study stages (`TM` records)  | `entdados.dat`              |
 | `dessemarq_uch_description`  | Description written in the `dessem.arq` `UCH` record | `UNIT COMMITMENT HIDRAULICO`|
 | `half_hour_stage_duration_h` | Stage duration marking the half-hour horizon, in h   | `0.5`                       |
-| `log_level`                  | Console and file log level                           | `INFO`                      |
+| `log_level`                  | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`    | `INFO`                      |
 | `log_dir`                    | Directory for the log file                           | `logs`                      |
 | `log_filename`               | Log file name                                        | `montador_uch.log`          |
 | `log_max_bytes`              | Size at which the log file rotates                   | `1000000`                   |

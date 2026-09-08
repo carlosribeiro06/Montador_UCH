@@ -11,12 +11,10 @@ from pathlib import Path
 from montador_uch import __version__
 from montador_uch.logging_setup import configure_logging
 from montador_uch.pipeline import run
-from montador_uch.settings import SettingsError, load_settings
+from montador_uch.settings import LOG_LEVELS, SettingsError, load_settings
 from montador_uch.spreadsheet import SpreadsheetError
 
 logger = logging.getLogger(__name__)
-
-LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
 
 def build_parser() -> argparse.ArgumentParser:
