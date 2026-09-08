@@ -50,6 +50,12 @@ known-first-party = ["montador_uch", "helpers"]
 strict = true
 mypy_path = "src"
 
+# idessem.dessem re-exports its file classes without an __all__, so strict mode rejects
+# `from idessem.dessem import Uch` even though that is the package's documented entry point.
+[[tool.mypy.overrides]]
+module = ["idessem.dessem"]
+implicit_reexport = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # importlib mode keeps the repository root off sys.path, so the legacy montador_uch.py
