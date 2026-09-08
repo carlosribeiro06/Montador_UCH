@@ -1,0 +1,15 @@
+{
+  "spreadsheet_path": "UCH.xlsx",
+  "sheet_name": "UCH",
+  "header_row": 1,
+  "uch_filename": "uch.csv",
+  "dessemarq_filename": "dessem.arq",
+  "entdados_filename": "entdados.dat",
+  "dessemarq_uch_description": "UNIT COMMITMENT HIDRAULICO",
+  "half_hour_stage_duration_h": 0.5,
+  "log_level": "INFO",
+  "log_dir": "logs",
+  "log_filename": "montador_uch.log",
+  "log_max_bytes": 1000000,
+  "log_backup_count": 5
+}

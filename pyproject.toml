@@ -50,4 +50,7 @@ python_version = "3.11"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+# importlib mode keeps the repository root off sys.path, so the legacy montador_uch.py
+# script cannot shadow the montador_uch package (removed with it in ticket-007).
+addopts = "-q --import-mode=importlib"
+pythonpath = ["src"]
