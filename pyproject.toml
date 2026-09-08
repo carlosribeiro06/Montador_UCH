@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "montador-uch"
+version = "1.0.0"
+description = "Builder for the DESSEM hydraulic unit commitment input file (uch.csv)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+dependencies = [
+    "idessem @ git+https://github.com/carlosribeiro06/idessem.git@da2118e",
+    "pandas>=3.0",
+    "openpyxl>=3.1",
+    "rich>=13",
+]
+
+[project.scripts]
+montador-uch = "montador_uch.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pandas-stubs>=2",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/montador_uch"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+# Legacy entry script, excluded until ticket-007 replaces it with the CLI package.
+extend-exclude = ["montador_uch.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+strict = true
+mypy_path = "src"
+python_version = "3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

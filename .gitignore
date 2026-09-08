@@ -14,3 +14,15 @@
 # Plan orchestration artifacts
 plans-lite/
 *.md
+
+# Logs
+logs/
+*.log
+
+# Python build and tool caches
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+.coverage
