@@ -139,14 +139,20 @@ def _read_optional_float(
 
 
 def _read_group_record(
-    row: pd.Series[Any], position: int, row_number: int, code: int
+    row: pd.Series[Any], position: int, row_number: int, code: int, active: bool
 ) -> GroupRecord:
-    """Read the raw group at 0-based `position`; a blank unit count defaults to zero."""
-    raw_unit_count = row[group_column(UNIT_COUNT_COLUMN, position)]
-    if pd.isna(raw_unit_count):
+    """Read the raw group at 0-based `position`.
+
+    A blank unit count is an error on an `active` position, as it has always been: the plant
+    declared the group in `N_conjuntos`, so a missing count is a defective row, not an empty
+    group. Beyond `N_conjuntos` the sheet simply leaves its unused columns empty, and a blank
+    count reads as zero.
+    """
+    unit_count_column = group_column(UNIT_COUNT_COLUMN, position)
+    if not active and pd.isna(row[unit_count_column]):
         unit_count = 0
     else:
-        unit_count = _read_int(row, group_column(UNIT_COUNT_COLUMN, position), row_number, code)
+        unit_count = _read_int(row, unit_count_column, row_number, code)
         if unit_count < 0:
             raise SpreadsheetError(
                 f"Row {row_number}, plant {code}: group {position + 1} has a negative unit "
@@ -189,7 +195,8 @@ def _read_plant_record(
         )
 
     groups = tuple(
-        _read_group_record(row, position, row_number, code) for position in range(MAX_GROUPS)
+        _read_group_record(row, position, row_number, code, active=position < group_count)
+        for position in range(MAX_GROUPS)
     )
     return PlantRecord(
         code=code,
@@ -285,6 +292,13 @@ def read_records(path: Path, sheet_name: str, header_row: int) -> list[PlantReco
     `SpreadsheetError` naming the plant code and the spreadsheet row. Every record carries all
     `MAX_GROUPS` group positions, whatever `N_conjuntos` says; `build_plant` is where a position
     beyond it stops mattering.
+
+    Two consequences of reading every position, both deliberate. A non-numeric or negative value
+    in a group column the plant does not use is now rejected, where the single-stage reader never
+    looked at it: an overlay may promote such a position to an active group, so its cells must be
+    trustworthy before that happens. And the summary below is logged by the read stage, so it
+    precedes any `SpreadsheetError` that `build_plant` raises later; it reports what was read,
+    never that the plants were successfully built.
     """
     logger.info(
         "Reading UCH spreadsheet %s (sheet %r, header row %d)", path, sheet_name, header_row
@@ -320,12 +334,7 @@ def read_records(path: Path, sheet_name: str, header_row: int) -> list[PlantReco
         for record in records
     )
     units = sum(
-        sum(
-            group.unit_count
-            for group in record.groups[: record.group_count]
-            if group.unit_count > 0
-        )
-        for record in records
+        sum(group.unit_count for group in record.groups[: record.group_count]) for record in records
     )
     logger.info(
         "Read %d row(s): %d plant(s) with UCH, %d skipped as %r, %d group(s), %d unit(s)",

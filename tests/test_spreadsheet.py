@@ -314,19 +314,10 @@ def test_record_always_has_five_group_positions(tmp_path: Path) -> None:
 
 def test_record_exposes_min_power_of_a_zero_unit_group(tmp_path: Path) -> None:
     """Plant 287 in the real workbook: group 2 keeps a start-up power despite `Nmaqs.2 = 0`."""
-    row = {
-        PLANT_CODE_COLUMN: 287,
-        PLANT_NAME_COLUMN: "SAMPLE",
-        AGGREGATION_COLUMN: "Conjunto",
-        GROUP_COUNT_COLUMN: 2,
-        group_column(UNIT_COUNT_COLUMN, 0): 6,
-        group_column(START_UP_POWER_COLUMN, 0): 101.0,
-        group_column(GROUP_MAX_POWER_COLUMN, 0): 912.0,
-        group_column(UNIT_COUNT_COLUMN, 1): 0,
-        group_column(START_UP_POWER_COLUMN, 1): 21.0,
-        group_column(GROUP_MAX_POWER_COLUMN, 1): 0.0,
-    }
-    path = write_uch_workbook(tmp_path / "UCH.xlsx", [row])
+    path = _workbook(
+        tmp_path,
+        plant_row(287, "SAMPLE", "Conjunto", [(6, 101.0, 912.0), (0, 21.0, 0.0)]),
+    )
     record = read_records(path, SHEET, HEADER_ROW)[0]
 
     zero_unit_group = record.groups[1]
@@ -364,6 +355,24 @@ def test_blank_cells_beyond_the_first_group_default_to_zero_and_none(tmp_path: P
         assert blank_group.unit_count == 0
         assert blank_group.min_power_mw is None
         assert blank_group.max_power_mw is None
+
+
+def test_missing_unit_count_on_active_group_raises(tmp_path: Path) -> None:
+    """An over-declared `N_conjuntos` must not silently drop the group it declared."""
+    row = {
+        PLANT_CODE_COLUMN: 1,
+        PLANT_NAME_COLUMN: "A",
+        AGGREGATION_COLUMN: "Conjunto",
+        GROUP_COUNT_COLUMN: 2,
+        group_column(UNIT_COUNT_COLUMN, 0): 2,
+        group_column(START_UP_POWER_COLUMN, 0): 5.0,
+        group_column(GROUP_MAX_POWER_COLUMN, 0): 20.0,
+        group_column(GROUP_MAX_POWER_COLUMN, 1): 30.0,
+    }
+    path = write_uch_workbook(tmp_path / "UCH.xlsx", [row])
+
+    with pytest.raises(SpreadsheetError, match="'Nmaqs.1' is empty; an integer is required"):
+        read_records(path, SHEET, HEADER_ROW)
 
 
 def test_build_plant_of_a_record_matches_read_plants(tmp_path: Path) -> None:
