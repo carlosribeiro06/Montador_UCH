@@ -10,12 +10,19 @@ from openpyxl import Workbook
 from helpers import plant_row, write_uch_workbook
 from montador_uch.model import AggregationLevel
 from montador_uch.spreadsheet import (
+    AGGREGATION_COLUMN,
     GROUP_COUNT_COLUMN,
+    GROUP_MAX_POWER_COLUMN,
     MAX_GROUPS,
     PLANT_CODE_COLUMN,
+    PLANT_NAME_COLUMN,
+    START_UP_POWER_COLUMN,
+    UNIT_COUNT_COLUMN,
     SpreadsheetError,
+    build_plant,
     group_column,
     read_plants,
+    read_records,
 )
 
 SHEET = "UCH"
@@ -290,3 +297,85 @@ def test_logs_counts_at_info(tmp_path: Path, caplog: pytest.LogCaptureFixture) -
     assert "1 plant(s) with UCH" in caplog.text
     assert "1 skipped" in caplog.text
     assert "2 unit(s)" in caplog.text
+
+
+def test_record_always_has_five_group_positions(tmp_path: Path) -> None:
+    path = _workbook(tmp_path, plant_row(6, "FURNAS", "Conjunto", [(2, 23.0, 46.0)]))
+    record = read_records(path, SHEET, HEADER_ROW)[0]
+
+    assert len(record.groups) == MAX_GROUPS
+    assert [group.index for group in record.groups] == list(range(1, MAX_GROUPS + 1))
+    assert record.code == 6
+    assert record.name == "FURNAS"
+    assert record.row_number == 3
+    assert record.aggregation is AggregationLevel.GROUP
+    assert record.group_count == 1
+
+
+def test_record_exposes_min_power_of_a_zero_unit_group(tmp_path: Path) -> None:
+    """Plant 287 in the real workbook: group 2 keeps a start-up power despite `Nmaqs.2 = 0`."""
+    row = {
+        PLANT_CODE_COLUMN: 287,
+        PLANT_NAME_COLUMN: "SAMPLE",
+        AGGREGATION_COLUMN: "Conjunto",
+        GROUP_COUNT_COLUMN: 2,
+        group_column(UNIT_COUNT_COLUMN, 0): 6,
+        group_column(START_UP_POWER_COLUMN, 0): 101.0,
+        group_column(GROUP_MAX_POWER_COLUMN, 0): 912.0,
+        group_column(UNIT_COUNT_COLUMN, 1): 0,
+        group_column(START_UP_POWER_COLUMN, 1): 21.0,
+        group_column(GROUP_MAX_POWER_COLUMN, 1): 0.0,
+    }
+    path = write_uch_workbook(tmp_path / "UCH.xlsx", [row])
+    record = read_records(path, SHEET, HEADER_ROW)[0]
+
+    zero_unit_group = record.groups[1]
+    assert zero_unit_group.unit_count == 0
+    assert zero_unit_group.min_power_mw == pytest.approx(21.0)
+    assert zero_unit_group.max_power_mw == pytest.approx(0.0)
+
+
+def test_record_exposes_a_position_beyond_group_count(tmp_path: Path) -> None:
+    row = {
+        PLANT_CODE_COLUMN: 1,
+        PLANT_NAME_COLUMN: "X",
+        AGGREGATION_COLUMN: "Conjunto",
+        GROUP_COUNT_COLUMN: 1,
+        group_column(UNIT_COUNT_COLUMN, 0): 2,
+        group_column(START_UP_POWER_COLUMN, 0): 5.0,
+        group_column(GROUP_MAX_POWER_COLUMN, 0): 20.0,
+        group_column(START_UP_POWER_COLUMN, 2): 99.0,
+    }
+    path = write_uch_workbook(tmp_path / "UCH.xlsx", [row])
+    record = read_records(path, SHEET, HEADER_ROW)[0]
+
+    beyond_group_count = record.groups[2]
+    assert beyond_group_count.unit_count == 0
+    assert beyond_group_count.min_power_mw == pytest.approx(99.0)
+    assert beyond_group_count.max_power_mw is None
+
+
+def test_blank_cells_beyond_the_first_group_default_to_zero_and_none(tmp_path: Path) -> None:
+    path = _workbook(tmp_path, plant_row(1, "A", "Conjunto", [(2, 5.0, 20.0)]))
+    record = read_records(path, SHEET, HEADER_ROW)[0]
+
+    for position in range(1, MAX_GROUPS):
+        blank_group = record.groups[position]
+        assert blank_group.unit_count == 0
+        assert blank_group.min_power_mw is None
+        assert blank_group.max_power_mw is None
+
+
+def test_build_plant_of_a_record_matches_read_plants(tmp_path: Path) -> None:
+    path = _workbook(
+        tmp_path,
+        plant_row(
+            6,
+            "FURNAS",
+            "Conjunto",
+            [(6, 101.0, 912.0), (0, 0.0, 0.0), (2, 101.0, 304.0)],
+        ),
+    )
+    record = read_records(path, SHEET, HEADER_ROW)[0]
+
+    assert build_plant(record) == read_plants(path, SHEET, HEADER_ROW)[0]
