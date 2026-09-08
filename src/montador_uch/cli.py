@@ -9,6 +9,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from montador_uch import __version__
+from montador_uch.cadastre_changes import CadastreChangeError
 from montador_uch.logging_setup import configure_logging
 from montador_uch.pipeline import run
 from montador_uch.settings import LOG_LEVELS, SettingsError, load_settings
@@ -64,18 +65,26 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         configure_logging(settings)
         summary = run(args.deck_dir, settings)
-    except (SettingsError, SpreadsheetError, FileNotFoundError, ValueError):
+    except (SettingsError, SpreadsheetError, CadastreChangeError, FileNotFoundError, ValueError):
         # Before configure_logging succeeds this reaches stderr via logging.lastResort.
         logger.exception("montador-uch failed")
         return 1
 
-    print(
-        f"uch.csv: {summary.uch_path} | {summary.plants} plants, "
-        f"{summary.groups} groups, {summary.units} units | horizon end "
-        f"{summary.end_stage.day}/{summary.end_stage.hour}/{summary.end_stage.half_hour} | "
-        f"dessem.arq {'updated' if summary.dessemarq_updated else 'already registered'} | "
-        f"{summary.elapsed_s:.2f} s"
+    segments = [
+        f"uch.csv: {summary.uch_path}",
+        f"{summary.plants} plants, {summary.groups} groups, {summary.units} units",
+        f"horizon end {summary.end_stage.day}/{summary.end_stage.hour}/"
+        f"{summary.end_stage.half_hour}",
+        f"{summary.changes_applied} AC changes applied",
+    ]
+    if summary.omitted_plants:
+        codes = ", ".join(str(code) for code in summary.omitted_plants)
+        segments.append(f"{len(summary.omitted_plants)} plants omitted ({codes})")
+    segments.append(
+        f"dessem.arq {'updated' if summary.dessemarq_updated else 'already registered'}"
     )
+    segments.append(f"{summary.elapsed_s:.2f} s")
+    print(" | ".join(segments))
     return 0
 
 

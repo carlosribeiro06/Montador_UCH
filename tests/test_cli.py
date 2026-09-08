@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import io
 import json
 import shutil
 from pathlib import Path
 
 import pytest
 from idessem.dessem import DessemArq, Uch
+from idessem.dessem.modelos.entdados import ACNUMMAQ
 
 from helpers import plant_row, write_uch_workbook
 from montador_uch import __version__
@@ -39,6 +41,25 @@ def deck(deck_dir: Path, tmp_path: Path) -> Path:
             pytest.skip(f"{source} not available")
         shutil.copy(source, target / name)
     return target
+
+
+@pytest.fixture
+def deck_with_omission(deck: Path) -> Path:
+    """`deck` with an extra `AC NUMMAQ 0` change that zeroes workbook plant 8's only group.
+
+    The line is generated through idessem's own register writer, then appended after a fresh
+    newline since the reference deck's `entdados.dat` has no trailing one.
+    """
+    entdados_path = deck / Settings().entdados_filename
+    change = ACNUMMAQ()
+    change.codigo_usina = 8
+    change.codigo_conjunto = 1
+    change.numero_maquinas = 0
+    buffer = io.StringIO()
+    change.write(buffer)
+    with entdados_path.open("a", encoding="latin-1") as handle:
+        handle.write("\n" + buffer.getvalue())
+    return deck
 
 
 @pytest.fixture
@@ -99,7 +120,9 @@ class TestRun:
         assert registers.count("UCH-GERACAO-MINIMA-MAXIMA-UNIDADE") == EXPECTED_UNIT_REGISTERS
         assert registers.count("UCH-GERACAO-MINIMA-MAXIMA-USINA") == EXPECTED_PLANT_REGISTERS
 
-        assert "3 plants" in capsys.readouterr().out
+        out = capsys.readouterr().out
+        assert "3 plants" in out
+        assert "AC changes applied" in out
 
     def test_output_is_parseable_by_idessem(self, deck: Path, settings_file: Path) -> None:
         main(_argv(deck, settings_file))
@@ -161,6 +184,15 @@ class TestRun:
         log_file = tmp_path / "logs" / Settings().log_filename
         assert log_file.is_file()
         assert "Run finished" in log_file.read_text(encoding="utf-8")
+
+    def test_stdout_reports_a_plant_omitted_by_an_ac_change(
+        self, deck_with_omission: Path, settings_file: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert main(_argv(deck_with_omission, settings_file)) == 0
+
+        out = capsys.readouterr().out
+        assert "AC changes applied" in out
+        assert "plants omitted (8)" in out
 
 
 class TestFailures:
