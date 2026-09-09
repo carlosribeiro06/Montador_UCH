@@ -194,6 +194,25 @@ class TestRun:
         assert "AC changes applied" in out
         assert "plants omitted (8)" in out
 
+    def test_audit_line_omits_the_codes_when_no_plant_was_omitted(
+        self, deck: Path, settings_file: Path, tmp_path: Path
+    ) -> None:
+        """The audit line joins the codes as text; a tuple would leak its repr as `omitted ()`."""
+        assert main(_argv(deck, settings_file)) == 0
+
+        log = (tmp_path / "logs" / Settings().log_filename).read_text(encoding="utf-8")
+        assert "0 plant(s) omitted;" in log
+        assert "omitted ()" not in log
+
+    def test_audit_line_reports_a_single_omitted_plant_as_a_bare_code(
+        self, deck_with_omission: Path, settings_file: Path, tmp_path: Path
+    ) -> None:
+        assert main(_argv(deck_with_omission, settings_file)) == 0
+
+        log = (tmp_path / "logs" / Settings().log_filename).read_text(encoding="utf-8")
+        assert "1 plant(s) omitted (8);" in log
+        assert "(8,)" not in log
+
 
 class TestFailures:
     def test_missing_deck_directory_exits_one(self, settings_file: Path, tmp_path: Path) -> None:

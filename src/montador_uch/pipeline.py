@@ -86,9 +86,10 @@ def run(deck_dir: Path, settings: Settings) -> RunSummary:
         changes_ignored=overlay.changes_ignored,
         omitted_plants=tuple(omitted.code for omitted in overlay.omitted),
     )
+    omitted_codes = ", ".join(str(code) for code in summary.omitted_plants)
     logger.info(
         "Run finished in %.3f s: %d plant(s), %d group(s), %d unit(s); %d cadastre change(s) "
-        "applied, %d ignored, %d plant(s) omitted %s; %s; %s",
+        "applied, %d ignored, %d plant(s) omitted%s; %s; %s",
         summary.elapsed_s,
         summary.plants,
         summary.groups,
@@ -96,7 +97,7 @@ def run(deck_dir: Path, settings: Settings) -> RunSummary:
         summary.changes_applied,
         summary.changes_ignored,
         len(summary.omitted_plants),
-        summary.omitted_plants,
+        f" ({omitted_codes})" if omitted_codes else "",
         summary.uch_path,
         "dessem.arq updated" if summary.dessemarq_updated else "dessem.arq already registered",
     )
