@@ -1,6 +1,9 @@
 # Ambientes virtuais
 .venv/
 
+# Claude
+.claude
+
 # Arquivos CSV
 *.csv
 
