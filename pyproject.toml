@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "montador-uch"
-version = "1.0.0"
+version = "1.1.0"
 description = "Builder for the DESSEM hydraulic unit commitment input file (uch.csv)"
 readme = "README.md"
 requires-python = ">=3.11"
