@@ -247,6 +247,21 @@ def test_all_groups_zeroed_is_omitted_with_warning(caplog: pytest.LogCaptureFixt
     assert "all unit groups have zero units" in caplog.text
 
 
+def test_numcon_zero_is_omitted_with_its_own_reason(caplog: pytest.LogCaptureFixture) -> None:
+    """`NUMCON 0` declares a plant with no groups; its groups keep their machines."""
+    record = _record(1, "NO GROUPS", 2, (2, 5.0, 20.0), (3, 10.0, 60.0))
+
+    with caplog.at_level("WARNING", logger="montador_uch.cadastre_overlay"):
+        result = apply_cadastre_changes([record], [GroupCountChange(1, 0)])
+
+    assert result.plants == []
+    [omitted] = result.omitted
+    assert omitted.code == 1
+    assert omitted.reason == "AC NUMCON set the plant to zero unit groups"
+    assert "all unit groups have zero units" not in caplog.text
+    assert "AC NUMCON set the plant to zero unit groups" in caplog.text
+
+
 def test_potefe_below_start_up_power_raises_with_plant_context() -> None:
     record = _record(1, "TIGHT", 1, (2, 50.0, 100.0))
 

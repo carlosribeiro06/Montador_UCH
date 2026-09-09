@@ -12,8 +12,11 @@ against the plant's *current* number of groups at the point it is applied, not i
 `N_conjuntos`. In practice `AC NUMCON` must precede any `NUMMAQ`/`POTEFE` that relies on the
 group it adds; the reverse order raises `CadastreChangeError`.
 
-A plant whose changes leave every unit group at zero units is dropped from the output with a
-warning, never modelled with an invented zero-unit group.
+A plant whose changes leave it without generating units is dropped from the output with a
+warning, never modelled with an invented zero-unit group. That happens two ways -- `AC NUMCON 0`
+declares the plant with no groups at all, or the surviving groups are all at zero units -- and
+the two are reported apart, since the `NUMCON 0` case leaves the groups holding the machines the
+workbook gives them.
 """
 
 from __future__ import annotations
@@ -21,6 +24,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Final
 
 from montador_uch.cadastre_changes import (
     CadastreChange,
@@ -41,10 +45,13 @@ from montador_uch.spreadsheet import (
 
 logger = logging.getLogger(__name__)
 
+ZERO_GROUPS_REASON: Final = "AC NUMCON set the plant to zero unit groups"
+ZERO_UNITS_REASON: Final = "all unit groups have zero units after AC changes"
+
 
 @dataclass(frozen=True, slots=True)
 class OmittedPlant:
-    """A plant dropped from the output because its cadastre changes zeroed every unit group."""
+    """A plant dropped from the output because its cadastre changes left it without units."""
 
     code: int
     name: str
@@ -217,11 +224,11 @@ def _finalise_groups(
 
 def _build_plant_with_changes(
     record: PlantRecord, changes: Sequence[CadastreChange]
-) -> HydroPlant | None:
+) -> HydroPlant | str:
     """Apply `changes` (already restricted to `record`'s plant, in file order) and build it.
 
-    Returns `None` when no unit group survives (see module docstring); every other failure
-    raises `CadastreChangeError`.
+    Returns the omission reason instead of a plant when no unit group survives (see module
+    docstring); every other failure raises `CadastreChangeError`.
     """
     group_count = record.group_count
     states = _initial_group_states(record)
@@ -236,14 +243,15 @@ def _build_plant_with_changes(
 
     groups = _finalise_groups(record, states, group_count)
     if not groups:
+        reason = ZERO_GROUPS_REASON if group_count == 0 else ZERO_UNITS_REASON
         logger.warning(
-            "Row %d, plant %d (%s): all unit groups have zero units after AC changes; "
-            "omitted from the output",
+            "Row %d, plant %d (%s): %s; omitted from the output",
             record.row_number,
             record.code,
             record.name,
+            reason,
         )
-        return None
+        return reason
 
     return HydroPlant(
         code=record.code, name=record.name, aggregation=record.aggregation, groups=tuple(groups)
@@ -285,13 +293,13 @@ def apply_cadastre_changes(
 
         changes_applied += len(plant_changes)
         plant = _build_plant_with_changes(record, plant_changes)
-        if plant is None:
+        if isinstance(plant, str):
             omitted.append(
                 OmittedPlant(
                     code=record.code,
                     name=record.name,
                     row_number=record.row_number,
-                    reason="all unit groups have zero units after AC changes",
+                    reason=plant,
                 )
             )
         else:

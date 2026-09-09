@@ -77,7 +77,9 @@ Flags:
 ```
 
 The run prints one summary line to stdout; everything else goes to the log. `N plants omitted
-(...)` only appears when at least one plant's unit groups were all zeroed by a cadastral change:
+(...)` only appears when a cadastral change left at least one plant without generating units --
+its groups all zeroed, or `AC NUMCON 0` leaving it no groups at all (see "Deck cadastral changes
+(AC records)" below):
 
 ```text
 uch.csv: /path/to/deck/uch.csv | 150 plants, 201 groups, 725 units | horizon end 2/23/1 | 36 AC changes applied | 2 plants omitted (87, 112) | dessem.arq updated | 0.22 s
@@ -205,6 +207,16 @@ zero-unit group:
 ```text
 Row 81, plant 112 (JACUI): all unit groups have zero units after AC changes; omitted from the
 output
+```
+
+An `AC NUMCON` of 0 declares the plant with no unit groups at all, which omits it the same way but
+under its own reason -- the groups there keep the machines the workbook gives them, so reporting
+them as zeroed would be false. No plant in the reference deck takes this path (its eight `NUMCON`
+records are all at least 1); had plant 112's been `AC 112 NUMCON 0` instead, the warning would
+read:
+
+```text
+Row 81, plant 112 (JACUI): AC NUMCON set the plant to zero unit groups; omitted from the output
 ```
 
 A change whose plant code matches no workbook row is ignored (logged at `DEBUG`), never raised --
