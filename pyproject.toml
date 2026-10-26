@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 dependencies = [
-    "idessem @ git+https://github.com/carlosribeiro06/idessem.git@da2118e",
+    "idessem>=1.4.0",
     "pandas>=3.0",
     "openpyxl>=3.1",
     "rich>=13",
@@ -27,9 +27,6 @@ dev = [
     "mypy>=1.11",
     "pandas-stubs>=2",
 ]
-
-[tool.hatch.metadata]
-allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/montador_uch"]

@@ -17,13 +17,7 @@ on a workstation and on a study server.
 
 - Python 3.11 or newer.
 - [`uv`](https://docs.astral.sh/uv/) for dependency resolution and running.
-- The `idessem` fork `github.com/carlosribeiro06/idessem`, pinned to commit `da2118e`.
-
-The fork is not optional. PyPI `idessem==1.3.0` does not expose the UCH registers this tool
-writes: `UchGminGmaxConjunto`, `UchGminGmaxUsina`, `UchPadraoData` and `UchOpcaoPadraoUsina` are
-absent from its `idessem.dessem.modelos.uch`, which offers `UchOpcaoUsina` and
-`UchOpcaoPadraoData` instead. The dependency is therefore declared by commit hash in
-`pyproject.toml` and locked in `uv.lock`.
+- `idessem>=1.4.0` from PyPI.
 
 `UCH.xlsx` is versioned in this repository and ships with a clone. The `*.xlsx` rule in
 `.gitignore` was added after the workbook was already tracked, so it only hides *new* workbooks --
